@@ -12,18 +12,21 @@ type ChatHandler struct {
 	Clients *service.Clients
 }
 
+// Constructor for ChatHandler
 func NewChatHandler(clients *service.Clients) *ChatHandler {
 	return &ChatHandler{Clients: clients}
 }
 
+// Ping handler for health check
 func Ping(w http.ResponseWriter, r *http.Request) {
-	response := "Pinged Sucessfully"
+	response := map[string]string{"message": "Pinged Successfully"}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
+// JoinHandler handles client joining
 func (h *ChatHandler) JoinHandler(w http.ResponseWriter, r *http.Request) {
-
+	// Handle timeout via context
 	select {
 	case <-r.Context().Done():
 		http.Error(w, "Request timed out", http.StatusRequestTimeout)
@@ -37,14 +40,20 @@ func (h *ChatHandler) JoinHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.Clients.JoinClient(clientID)
+	// Attempt to join client
+	if err := h.Clients.JoinClient(clientID); err != nil {
+		http.Error(w, err.Error(), http.StatusConflict) // Handle if the client already exists
+		return
+	}
 
+	// Successful response
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("User joined successfully"))
+	json.NewEncoder(w).Encode(map[string]string{"message": "User joined successfully"})
 }
 
+// LeaveHandler handles client leaving
 func (h *ChatHandler) LeaveHandler(w http.ResponseWriter, r *http.Request) {
-
+	// Handle timeout via context
 	select {
 	case <-r.Context().Done():
 		http.Error(w, "Request timed out", http.StatusRequestTimeout)
@@ -58,14 +67,20 @@ func (h *ChatHandler) LeaveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.Clients.LeaveClient(clientID)
+	// Attempt to remove client
+	if err := h.Clients.LeaveClient(clientID); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound) // Handle if the client doesn't exist
+		return
+	}
 
+	// Successful response
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("User left successfully"))
+	json.NewEncoder(w).Encode(map[string]string{"message": "User left successfully"})
 }
 
+// SendMessageHandler handles sending messages
 func (h *ChatHandler) SendMessageHandler(w http.ResponseWriter, r *http.Request) {
-
+	// Handle timeout via context
 	select {
 	case <-r.Context().Done():
 		http.Error(w, "Request timed out", http.StatusRequestTimeout)
@@ -76,16 +91,57 @@ func (h *ChatHandler) SendMessageHandler(w http.ResponseWriter, r *http.Request)
 	clientID := r.URL.Query().Get("id")
 	message := r.URL.Query().Get("message")
 
-	if clientID == "" || message == "" {
-		http.Error(w, "Client ID and message are required", http.StatusBadRequest)
+	// Validate inputs
+	if clientID == "" {
+		http.Error(w, "Client ID is required", http.StatusBadRequest)
 		return
 	}
-	mes := models.Chat{
+	if message == "" {
+		http.Error(w, "Message content is required", http.StatusBadRequest)
+		return
+	}
+
+	// Construct message model
+	chatMessage := models.Chat{
 		ClientID: clientID,
 		Message:  message,
 	}
-	h.Clients.SendMessage(mes)
 
+	// Attempt to send message
+	if err := h.Clients.SendMessage(chatMessage); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound) // Handle if the client doesn't exist
+		return
+	}
+
+	// Successful response
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Message sent successfully"))
+	json.NewEncoder(w).Encode(map[string]string{"message": "Message sent successfully"})
+}
+
+func (h *ChatHandler) GetMessageHandler(w http.ResponseWriter, r *http.Request) {
+	// Handle timeout via context
+	select {
+	case <-r.Context().Done():
+		http.Error(w, "Request timed out", http.StatusRequestTimeout)
+		return
+	default:
+	}
+
+	clientID := r.URL.Query().Get("id")
+	if clientID == "" {
+		http.Error(w, "Client ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Fetch messages for the client
+	response, err := h.Clients.GetMessage(clientID)
+	if err != nil {
+		// If an error occurred in fetching messages
+		http.Error(w, err.Error(), http.StatusNotFound) // Handle case if the client doesn't exist
+		return
+	}
+
+	// Successful response with the messages
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }

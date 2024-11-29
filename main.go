@@ -6,17 +6,18 @@ import (
 	"os"
 	"runtime/pprof"
 
-	apihandlers "github.com/ROHITHSAKTHIVEL/GoatRobotics/apiHandlers"
 	"github.com/ROHITHSAKTHIVEL/GoatRobotics/config"
+	routes "github.com/ROHITHSAKTHIVEL/GoatRobotics/routes"
 	"github.com/ROHITHSAKTHIVEL/GoatRobotics/service"
 )
 
 func init() {
+	// Read configuration before starting
 	config.ReadConfig()
 }
 
 func main() {
-
+	// Open profiling output file
 	outputFile, err := os.Create("profiling_output.log")
 	if err != nil {
 		log.Fatal("Could not create output file:", err)
@@ -26,24 +27,22 @@ func main() {
 	// Initialize profiling and write to the output file
 	initPprof(outputFile)
 
+	// Initialize Clients
 	clients := service.NewClients()
 
+	// Start listener in a goroutine
 	go clients.Listener()
 
-	handler := apihandlers.NewChatHandler(clients)
+	// Setup routes using the new routes package
+	handler := routes.SetupRoutes(clients)
 
-	commonMiddleware := apihandlers.NewMiddleware(10, 20) // TODO set new value in config for rate limit value
-
-	http.HandleFunc("/join", commonMiddleware.MiddleWare(handler.JoinHandler))
-	http.HandleFunc("/leave", commonMiddleware.MiddleWare(handler.LeaveHandler))
-	http.HandleFunc("/send-message", commonMiddleware.MiddleWare(handler.SendMessageHandler))
-	http.HandleFunc("/ping", apihandlers.Ping)
-
+	// Start the server with the handler
 	log.Printf("Starting server on %s", config.Port)
-	if err := http.ListenAndServe(config.Port, nil); err != nil {
+	if err := http.ListenAndServe(config.Port, handler); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 
+	// Capture memory profile after server shuts down
 	captureMemoryProfile(outputFile)
 
 	log.Println("Application is exiting...")
