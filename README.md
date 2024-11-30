@@ -19,6 +19,19 @@ Clone the Project from Github
   # If you want to Change Something in Code then you need to have :
    Go lang Installed on your Computer
 ```
+## Run
+Using go run main.go
+
+```bash
+ go run main.go
+```
+
+Using Docker-compose
+
+```bash
+docker compose up -d
+```
+
 
 #### To Change Server Configuration
 Change this file to Change the Server Configuration
