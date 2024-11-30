@@ -44,7 +44,7 @@ Postman collection is provided
 
 ```bash
 #import postman collection and hit directly
- 
+ /GoatRobotics_Postman_Collection
 ```
 
     
