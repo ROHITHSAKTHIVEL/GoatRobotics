@@ -32,7 +32,6 @@ Using Docker-compose
 docker compose up -d
 ```
 
-
 #### To Change Server Configuration
 Change this file to Change the Server Configuration
 ```bash
@@ -40,6 +39,13 @@ Change this file to Change the Server Configuration
 ```
 Feel free to Change the Server Configuration as Per your needs
 
+## Api checking 
+Postman collection is provided
+
+```bash
+#import postman collection and hit directly
+ 
+```
 
     
 ## API Reference
@@ -47,7 +53,7 @@ Feel free to Change the Server Configuration as Per your needs
 #### 1. Join the Chat Room
 
 ```http
-  GET http://localhost:8080/rpc/GOATROBOTICS/join?id=12345
+  GET http://localhost:9000/join?id=12345
 ```
 #### Curl 
 
