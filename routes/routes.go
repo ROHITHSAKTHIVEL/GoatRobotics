@@ -26,6 +26,7 @@ func SetupRoutes(clients *service.Clients) http.Handler {
 	router.HandleFunc("/send", commonMiddleware.MiddleWare(handler.SendMessageHandler)).Methods("POST", "GET")
 	router.HandleFunc("/messages", commonMiddleware.MiddleWare(handler.GetMessageHandler)).Methods("GET")
 	router.HandleFunc("/ping", apiHandlers.Ping).Methods("GET")
+	router.HandleFunc("/viewlogs", apiHandlers.GetLogHandler).Methods("GET")
 
 	// Allow CORS for all routes
 	corsMiddleware := cors.New(cors.Options{

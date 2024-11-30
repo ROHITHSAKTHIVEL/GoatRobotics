@@ -59,7 +59,7 @@ func (m *MiddleWare) MiddleWare(next http.HandlerFunc) http.HandlerFunc {
 		var payload models.Request
 		var clientID string
 
-		// Log start time
+		
 		startTime := time.Now()
 
 		// Create an intermediate response recorder to capture the response details
@@ -69,7 +69,6 @@ func (m *MiddleWare) MiddleWare(next http.HandlerFunc) http.HandlerFunc {
 			endTime := time.Now()
 			duration := endTime.Sub(startTime)
 
-			// Prepare log entry
 			logEntry := models.Logs{
 				ClientID:         clientID,
 				MethodName:       r.Method,
@@ -78,18 +77,17 @@ func (m *MiddleWare) MiddleWare(next http.HandlerFunc) http.HandlerFunc {
 				RequestHeaders:   formatHeaders(r.Header),
 				QueryParameters:  formatQueryParameters(r.URL.Query()),
 				ResponseDuration: duration,
-				ResponseBody:     string(rec.Body),            // Log the full response body
-				ResponseHeaders:  formatHeaders(rec.Header()), // Log response headers
+				ResponseBody:     string(rec.Body),            
+				ResponseHeaders:  formatHeaders(rec.Header()), 
 				StatusCode:       rec.statusCode,
 				StartTime:        startTime,
 				EndTime:          endTime,
 			}
 
-			// Log the details
+			
 			logs.AddLog(logEntry)
 		}()
 
-		// Handle rate limiting and clientID extraction
 		if r.Method == http.MethodPost {
 			if err := json.NewDecoder(r.Body).Decode(&payload); err == nil && payload.ClientID != "" {
 				clientID = payload.ClientID
@@ -103,7 +101,6 @@ func (m *MiddleWare) MiddleWare(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		// Retrieve the rate limiter for the client
 		limiter := m.getLimiter(clientID)
 
 		// Check if the request is allowed by the rate limiter

@@ -35,3 +35,18 @@ func GetLog(clientID string, startTime time.Time) ([]models.Logs, error) {
 
 	return result, nil
 }
+
+func GetAllLogs() ([]models.Logs, error) {
+	var result []models.Logs
+
+	// Iterate over the map and append logs to the result slice
+	for _, log := range Logs {
+		result = append(result, log)
+	}
+
+	if len(result) == 0 {
+		return nil, fmt.Errorf("no logs available")
+	}
+
+	return result, nil
+}

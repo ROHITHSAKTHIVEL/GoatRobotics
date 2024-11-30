@@ -2,8 +2,11 @@ package apihandlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/ROHITHSAKTHIVEL/GoatRobotics/logs"
 	"github.com/ROHITHSAKTHIVEL/GoatRobotics/models"
 	"github.com/ROHITHSAKTHIVEL/GoatRobotics/service"
 )
@@ -12,13 +15,19 @@ type ChatHandler struct {
 	Clients *service.Clients
 }
 
-// Constructor for ChatHandler
+
 func NewChatHandler(clients *service.Clients) *ChatHandler {
 	return &ChatHandler{Clients: clients}
 }
 
-// Ping handler for health check
+
 func Ping(w http.ResponseWriter, r *http.Request) {
+	response := map[string]string{"message": "Pinged Successfully"}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func Logs(w http.ResponseWriter, r *http.Request) {
 	response := map[string]string{"message": "Pinged Successfully"}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
@@ -26,7 +35,7 @@ func Ping(w http.ResponseWriter, r *http.Request) {
 
 // JoinHandler handles client joining
 func (h *ChatHandler) JoinHandler(w http.ResponseWriter, r *http.Request) {
-	// Handle timeout via context
+	
 	select {
 	case <-r.Context().Done():
 		http.Error(w, "Request timed out", http.StatusRequestTimeout)
@@ -40,20 +49,20 @@ func (h *ChatHandler) JoinHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Attempt to join client
+	
 	if err := h.Clients.JoinClient(clientID); err != nil {
-		http.Error(w, err.Error(), http.StatusConflict) // Handle if the client already exists
+		http.Error(w, err.Error(), http.StatusConflict) 
 		return
 	}
 
-	// Successful response
+	
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "User joined successfully"})
 }
 
-// LeaveHandler handles client leaving
+
 func (h *ChatHandler) LeaveHandler(w http.ResponseWriter, r *http.Request) {
-	// Handle timeout via context
+	
 	select {
 	case <-r.Context().Done():
 		http.Error(w, "Request timed out", http.StatusRequestTimeout)
@@ -67,20 +76,20 @@ func (h *ChatHandler) LeaveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Attempt to remove client
+	
 	if err := h.Clients.LeaveClient(clientID); err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound) // Handle if the client doesn't exist
+		http.Error(w, err.Error(), http.StatusNotFound) 
 		return
 	}
 
-	// Successful response
+	
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "User left successfully"})
 }
 
-// SendMessageHandler handles sending messages
+
 func (h *ChatHandler) SendMessageHandler(w http.ResponseWriter, r *http.Request) {
-	// Handle timeout via context
+	
 	select {
 	case <-r.Context().Done():
 		http.Error(w, "Request timed out", http.StatusRequestTimeout)
@@ -101,25 +110,25 @@ func (h *ChatHandler) SendMessageHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Construct message model
+	
 	chatMessage := models.Chat{
 		ClientID: clientID,
 		Message:  message,
 	}
 
-	// Attempt to send message
+	
 	if err := h.Clients.SendMessage(chatMessage); err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound) // Handle if the client doesn't exist
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
-	// Successful response
+	
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Message sent successfully"})
 }
 
 func (h *ChatHandler) GetMessageHandler(w http.ResponseWriter, r *http.Request) {
-	// Handle timeout via context
+	
 	select {
 	case <-r.Context().Done():
 		http.Error(w, "Request timed out", http.StatusRequestTimeout)
@@ -133,15 +142,64 @@ func (h *ChatHandler) GetMessageHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Fetch messages for the client
+	
 	response, err := h.Clients.GetMessage(clientID)
 	if err != nil {
-		// If an error occurred in fetching messages
-		http.Error(w, err.Error(), http.StatusNotFound) // Handle case if the client doesn't exist
+		
+		http.Error(w, err.Error(), http.StatusNotFound) 
 		return
 	}
 
-	// Successful response with the messages
+	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func GetLogHandler(w http.ResponseWriter, r *http.Request) {
+	
+	clientID := r.URL.Query().Get("clientID")
+	
+	startTimeStr := r.URL.Query().Get("startTime")
+
+	// If neither clientID nor startTime is provided, return all logs
+	if clientID == "" && startTimeStr == "" {
+		logs, err := logs.GetAllLogs() // Fetch all logs
+		if err != nil {
+			http.Error(w, "Error fetching logs: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(logs); err != nil {
+			http.Error(w, fmt.Sprintf("Error encoding logs: %v", err), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// If a startTime is provided, parse it
+	var startTime time.Time
+	if startTimeStr != "" {
+		var err error
+		startTime, err = time.Parse(time.RFC3339, startTimeStr)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Invalid startTime format: %v", err), http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Call the GetLog function to retrieve logs based on clientID and startTime
+	logs, err := logs.GetLog(clientID, startTime)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(logs); err != nil {
+		http.Error(w, fmt.Sprintf("Error encoding logs: %v", err), http.StatusInternalServerError)
+	}
 }
